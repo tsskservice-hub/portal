@@ -1,20 +1,14 @@
 import { useState, useEffect } from "react";
-import type { MetaFunction } from "react-router";
-import { Link } from "react-router";
-import { Sparkles, ArrowRight, ShieldCheck, Sun, Moon, Check, ShoppingBag, GraduationCap, Mic } from "lucide-react";
-import { Header } from "../components/header"; // ⬅️ ① 共通ヘッダーをインポート (パスは実際の階層に合わせて調整してください)
-
-export const meta: MetaFunction = () => {
-  return [
-    { title: "Pricing & Plans - JP Tutor AI Yamato" },
-    { name: "description", content: "Choose your ideal learning plan or select individual app modules for VCE Japanese success." },
-  ];
-};
+import { Link } from "react-router-dom";
+import { Sparkles, ArrowRight, ShieldCheck, Check, ShoppingBag, GraduationCap, Mic } from "lucide-react";
+import { Header } from "../components/header";
 
 export default function Prices() {
   const [isDark, setIsDark] = useState(true);
 
   useEffect(() => {
+    document.title = "Pricing & Plans - JP Tutor AI Yamato";
+    
     const savedTheme = localStorage.getItem("theme");
     const isDarkModeActive = savedTheme === "dark" || (!savedTheme && document.documentElement.classList.contains("dark"));
     
@@ -26,22 +20,10 @@ export default function Prices() {
     }
   }, []);
 
-  const toggleTheme = () => {
-    if (isDark) {
-      setIsDark(false);
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    } else {
-      setIsDark(true);
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    }
-  };
-
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300">
       
-      {/* ⬅️ ② 共通ヘッダーコンポーネントを配置 */}
+      {/* 共通ヘッダーコンポーネント */}
       <Header />
 
       <main className="flex-grow">
