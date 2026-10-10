@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Header } from "../components/header"; // ⬅️ ① 共通ヘッダーをインポート (パスは実際の階層に合わせて調整してください)
+import type { MetaFunction } from "@remix-run/react";
+import { Header } from "../components/header";
 
 // ミニ5路囲碁のゲームコンポーネントを単独アプリ用に1ファイルに統合
 function IgoBoard() {

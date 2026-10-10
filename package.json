@@ -4,20 +4,25 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "pages:dev": "wrangler pages dev dist --port 8788",
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "remix vite:dev",
+    "build": "remix vite:build",
+    "start": "remix-serve ./build/server/index.js",
+    "pages:dev": "wrangler pages dev ./build/client --port 8788"
   },
   "dependencies": {
     "@google/genai": "^2.28.0",
+    "@remix-run/node": "^2.17.5",
+    "@remix-run/react": "^2.17.5",
+    "@remix-run/serve": "^2.17.5",
     "@supabase/supabase-js": "^2.117.3",
+    "isbot": "^5.2.2",
     "lucide-react": "^1.53.0",
     "react-router": "^8.4.0",
     "react-router-dom": "^7.18.4",
     "stripe": "^23.0.0"
   },
   "devDependencies": {
+    "@remix-run/dev": "^2.17.5",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
@@ -27,6 +32,7 @@
     "react-dom": "^19.3.0",
     "tailwindcss": "^4.3.3",
     "vite": "^8.3.4",
+    "vite-tsconfig-paths": "^6.1.1",
     "wrangler": "^4.149.0"
   }
 }

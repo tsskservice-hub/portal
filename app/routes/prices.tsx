@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "@remix-run/react";
 import { Sparkles, ArrowRight, ShieldCheck, Check, ShoppingBag, GraduationCap, Mic } from "lucide-react";
 import { Header } from "../components/header";
 

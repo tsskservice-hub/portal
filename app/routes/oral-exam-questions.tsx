@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { type MetaFunction } from "react-router";
+import type { MetaFunction } from "@remix-run/react";
 
 // 🚀 モノレポ依存を排除し、app内のローカルデータファイルへ直接インポートする形に変更
 import questionDataRaw from "../data/oral-exam-questions.json";

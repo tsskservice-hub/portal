@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import type { MetaFunction } from "react-router";
-import { Link } from "react-router";
+import type { MetaFunction } from "@remix-run/react";
 import oralExamQuestionsData from "../data/oral-exam-questions.json";
-import { Header } from "../components/header"; // ⬅️ ① 共通ヘッダーをインポート (パスは実際の階層に合わせて調整してください)
+import { Header } from "../components/header";
 
 export const meta: MetaFunction = () => {
   return [
@@ -413,7 +412,6 @@ export default function UnifiedDrillMode() {
   };
 
   const handleAnswerBlur = (_id: string, _text: string, _isCustom?: boolean) => {
-    // ローカル状態のみの更新になるため追加のDB処理は不要
   };
 
   const handleAddCustomQuestion = (e: React.FormEvent) => {
@@ -727,7 +725,6 @@ export default function UnifiedDrillMode() {
         }
       `}</style>
 
-      {/* ⬅️ ② 共通ヘッダーコンポーネントを配置 */}
       <Header />
 
       <main className="max-w-3xl mx-auto px-4 py-8 space-y-8">
@@ -1080,7 +1077,6 @@ export default function UnifiedDrillMode() {
         </div>
       </main>
 
-      {/* 🤖 右下常駐エリア（AIチューター窓） */}
       <aside aria-label="AI Yamato" className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
         {!isAiTutorOpen ? (
           <button

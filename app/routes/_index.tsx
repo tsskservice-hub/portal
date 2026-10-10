@@ -17,8 +17,8 @@ import {
   LogOut, 
   Loader2 
 } from 'lucide-react';
-import { supabase } from './lib/supabaseClient';
-import { signUpAndRegisterPasskey, signInWithPasskey } from './lib/passkey';
+import { supabase } from '../lib/supabaseClient';
+import { signUpAndRegisterPasskey, signInWithPasskey } from '../lib/passkey';
 
 export const STRIPE_PRICES = {
   starter: 'price_1UOmko2ZJezqyZ9eR0l8cvUk',

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link } from "@remix-run/react";
 import TextTypeModal from "../components/TextTypeModal";
-import { Header } from "../components/header"; // ⬅️ ① ヘッダーをインポート (パスは実際の階層に合わせて調整してください)
+import { Header } from "../components/header";
 
 // --- 📦 外部のJSONファイルから正式なデータをインポート ---
 import questionsData from "../data/writing-exam-questions.json";

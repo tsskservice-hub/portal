@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useEffect } from "react";
-import type { MetaFunction } from "react-router";
+import type { MetaFunction } from "@remix-run/react";
 import oralExamQuestionsData from "../data/oral-exam-questions.json";
-import { Header } from "../components/header"; // ⬅️ ① 共通ヘッダーをインポート (パスは実際の階層に合わせて調整してください)
+import { Header } from "../components/header";
 
 export const meta: MetaFunction = () => {
   return [

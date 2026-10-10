@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import type { MetaFunction } from "react-router";
-import { Header } from "../components/header"; // ⬅️ ① 共通ヘッダーをインポート (パスは実際の階層に合わせて調整してください)
+import type { MetaFunction } from "@remix-run/react";
+import { Header } from "../components/header";
 
 export const meta: MetaFunction = () => {
   return [
