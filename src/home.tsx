@@ -36,10 +36,10 @@ export default function Home() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [credits, setCredits] = useState<number>(10);
-  
+   
   // 決済処理中のローディング状態管理（どの価格IDを処理中か）
   const [checkoutLoadingPriceId, setCheckoutLoadingPriceId] = useState<string | null>(null);
-  
+   
   // パスキー認証・登録モーダルの状態管理
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
@@ -122,13 +122,14 @@ export default function Home() {
     setUser(null);
   };
 
-  // アプリ起動時のガード処理（未ログインならパスキー登録モーダルへ誘導）
+  // アプリ起動時のガード処理（未ログインならパスキー登録モーダルへ誘導し、ログイン済みなら app 側へ遷移）
   const handleLaunchApp = (appName: string, appUrl: string) => {
     if (!user) {
       setAuthMode('signup');
       setIsAuthModalOpen(true);
       return;
     }
+    // appプロジェクト側のURLへ遷移（環境に合わせてドメイン付与や絶対パスに調整してください）
     window.location.href = appUrl;
   };
 
@@ -330,7 +331,7 @@ export default function Home() {
               <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-pink-500/10 text-pink-400 border border-pink-500/20">
                 <span>⭐ Featured VCE App</span>
               </div>
-              
+               
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
                 VCE Japanese EOY Exam <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-amber-400">
@@ -534,7 +535,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Card 3 */}
+            {/* Card 3 (Genkouyoshi Editor - Updated to use handleLaunchApp for authentication check and redirection to app/src/pages/genkoyoshi-editor.tsx) */}
             <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-emerald-500/50 transition-colors`}>
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
@@ -548,9 +549,9 @@ export default function Home() {
               </div>
               <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
                 <span className="text-slate-400 font-medium">Free for Everyone</span>
-                <a href="/genkouyoshi-editor" className="text-emerald-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
+                <button onClick={() => handleLaunchApp('Genkouyoshi Editor', '/genkouyoshi-editor')} className="text-emerald-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer bg-transparent border-none p-0">
                   <span>Open Editor</span> <ArrowRight className="w-3 h-3" />
-                </a>
+                </button>
               </div>
             </div>
 
@@ -568,9 +569,9 @@ export default function Home() {
               </div>
               <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
                 <span className="text-slate-400 font-medium">Free for Everyone</span>
-                <a href="/audio-hub" className="text-indigo-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
+                <button onClick={() => handleLaunchApp('Audio Hub', '/audio-hub')} className="text-indigo-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer bg-transparent border-none p-0">
                   <span>Open Audio Hub</span> <ArrowRight className="w-3 h-3" />
-                </a>
+                </button>
               </div>
             </div>
           </div>
