@@ -27,7 +27,7 @@ import { signUpAndRegisterPasskey, signInWithPasskey } from './lib/passkey'; // 
 // （他のページやファイルからもインポートして共有できます）
 // ==========================================
 export const STRIPE_PRICES = {
-  starter: 'price_1UOmko2ZJezqyZ9eR0l8cvUk', // TODO: 実際のStripe価格ID（price_...）に置き換えてください
+  starter: 'price_1UOmko2ZJezqyZ9eR0l8cvUk', // 実際のStripe価格ID
   standard: 'price_1xxxx_standard', 
   pro: 'price_1xxxx_pro',
 };
@@ -47,8 +47,16 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Supabase セッション状態の監視
+  // Supabase セッション状態の監視 ＆ 決済成功（?success=true）の検知
   useEffect(() => {
+    // URLクエリパラメータのチェック（Stripe決済完了後のリダイレクト検知）
+    const queryParams = new URLSearchParams(window.location.search);
+    if (queryParams.get('success') === 'true') {
+      alert('Payment successful! Your credits have been updated.');
+      // URLから success=true を綺麗に取り除く
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {

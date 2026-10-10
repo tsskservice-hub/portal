@@ -30,6 +30,15 @@ export const onRequestPost = async (context: any) => {
     const successUrl = `${origin}/?success=true`;
     const cancelUrl = `${origin}/?canceled=true`;
 
+    // 価格IDに応じて付与するクレジット数を設定
+    let creditsToGrant = 1000; // デフォルト（Starter Pack）
+    if (priceId === 'price_1UDmkoZZJezqyZ9eR0I8cvUk') {
+      creditsToGrant = 1000;
+    }
+    // 必要に応じて他のプランも追加可能
+    // else if (priceId === 'price_1xxxx_standard') { creditsToGrant = 2800; }
+    // else if (priceId === 'price_1xxxx_pro') { creditsToGrant = 6000; }
+
     // Stripeの Checkout Sessions APIに送るパラメータをURLSearchParamsで構築
     const stripeParams = new URLSearchParams();
     stripeParams.append('mode', 'payment');
@@ -38,19 +47,11 @@ export const onRequestPost = async (context: any) => {
     stripeParams.append('line_items[0][price]', priceId);
     stripeParams.append('line_items[0][quantity]', '1');
 
+    // Webhook側（stripe.ts）が読み取れるメタデータキー名で登録
     if (userId) {
-      stripeParams.append('metadata[user_id]', userId);
+      stripeParams.append('metadata[supabase_user_id]', userId);
     }
-
-    // Stripe APIへリクエストを送信
-    const stripeResponse = await fetch('https://api.stripe.com/v1/checkout/sessions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${env.STRPEC_SECRET_KEY || env.STRIPE_SECRET_KEY}`, // 念のため
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: stripeParams.toString(),
-    });
+    stripeParams.append('metadata[credits]', creditsToGrant.toString());
 
     // 実際のヘッダー調整
     const responseHeaders = {

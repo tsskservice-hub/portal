@@ -43,6 +43,7 @@ export async function onRequestPost(context: {
           env.SUPABASE_SERVICE_ROLE_KEY
         );
 
+        // 1. クレジットの加算処理（RPCまたは直接UPDATE）
         const { error: rpcError } = await supabaseAdmin.rpc("increment_credits", {
           user_id: userId,
           amount: creditsToAdd,
@@ -60,6 +61,18 @@ export async function onRequestPost(context: {
             .from("profiles")
             .update({ credits: currentCredits + creditsToAdd })
             .eq("id", userId);
+        }
+
+        // 2. purchases テーブルへの購入履歴の保存処理を追加
+        const { error: purchaseError } = await supabaseAdmin.from("purchases").insert({
+          user_id: userId,
+          stripe_session_id: session.id,
+          amount_paid: session.amount_total, // 支払金額（Stripeからはセント単位で入るため必要に応じて調整）
+          credits_granted: creditsToAdd,
+        });
+
+        if (purchaseError) {
+          console.error("Failed to insert purchase record:", purchaseError.message);
         }
       }
     }
