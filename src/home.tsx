@@ -27,7 +27,7 @@ import { signUpAndRegisterPasskey, signInWithPasskey } from './lib/passkey'; // 
 // （他のページやファイルからもインポートして共有できます）
 // ==========================================
 export const STRIPE_PRICES = {
-  starter: 'price_1UDmkoZZJezqyZ9eR0I8cvUk', // TODO: 実際のStripe価格ID（price_...）に置き換えてください
+  starter: 'price_1UOmko2ZJezqyZ9eR0l8cvUk', // TODO: 実際のStripe価格ID（price_...）に置き換えてください
   standard: 'price_1xxxx_standard', 
   pro: 'price_1xxxx_pro',
 };
