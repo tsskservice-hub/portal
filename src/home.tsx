@@ -311,7 +311,7 @@ export default function Home() {
                 <div className="inline-block px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-600 text-xs font-bold">
                   Daily 2 Free Credits
                 </div>
-                <p className="text-xs text-slate-500">Recharged daily upon login. Enjoy basic chat, traditional games, and Genkouyoshi editor tools.</p>
+                <p className="text-xs text-slate-500">Recharged daily upon login. Enjoy basic chat, traditional games, and Genkoyoshi editor tools.</p>
                 <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-300">
                   <li className="flex items-center space-x-2"><Check className="w-3.5 h-3.5 text-blue-600" /><span>Daily Login Credits ($0.80-$1 value)</span></li>
                   <li className="flex items-center space-x-2"><Check className="w-3.5 h-3.5 text-blue-600" /><span>Free Traditional Games & Tools</span></li>
@@ -417,7 +417,7 @@ export default function Home() {
             </div>
             <div className="space-y-2 text-slate-500">
               <div className="flex justify-between border-b border-slate-500/10 pb-1.5"><span>Text Chat (Q&A / Vocabulary)</span> <span className="font-semibold text-slate-700 dark:text-slate-300">1-2 credits / turn</span></div>
-              <div className="flex justify-between border-b border-slate-500/10 pb-1.5"><span>Essay / Genkouyoshi Correctors</span> <span className="font-semibold text-slate-700 dark:text-slate-300">20-30 credits / session</span></div>
+              <div className="flex justify-between border-b border-slate-500/10 pb-1.5"><span>Essay / Genkoyoshi Correctors</span> <span className="font-semibold text-slate-700 dark:text-slate-300">20-30 credits / session</span></div>
               <div className="flex justify-between border-b border-slate-500/10 pb-1.5"><span>Oral Exam / Voice Roleplay</span> <span className="font-semibold text-slate-700 dark:text-slate-300">15-25 credits / min</span></div>
               <div className="flex justify-between pt-0.5"><span>Mini Games & Drills</span> <span className="font-semibold text-emerald-600">Free / 0.5 credits</span></div>
             </div>
@@ -517,18 +517,18 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 6. genkouyoshi-editor.tsx */}
+            {/* 6. genkoyoshi-editor.tsx */}
             <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-amber-500/50 transition-colors`}>
               <div className="space-y-4">
                 <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
                   <Grid className="w-5 h-5" />
                 </div>
-                <h3 className="font-bold text-base">Genkouyoshi Editor</h3>
+                <h3 className="font-bold text-base">Genkoyoshi Editor</h3>
                 <p className="text-xs text-slate-500 leading-relaxed">Digital manuscript paper editor for precise Japanese character layout, counting, and PDF export.</p>
               </div>
               <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
                 <span className="text-slate-400 font-medium">Free Tool</span>
-                <a href="/genkouyoshi-editor" className="text-amber-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
+                <a href="/genkoyoshi-editor" className="text-amber-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
                   <span>Open Editor</span> <ArrowRight className="w-3 h-3" />
                 </a>
               </div>
