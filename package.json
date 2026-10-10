@@ -38,6 +38,7 @@
     "wrangler": "^4.149.0"
   },
   "overrides": {
-    "vite": "$vite"
+    "vite": "$vite",
+    "wrangler": "$wrangler"
   }
 }
