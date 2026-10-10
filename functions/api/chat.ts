@@ -1,11 +1,11 @@
 /**
  * @file chat.ts
- * @description Cloudflare Pages Functions用チャットエンドポイント（system-prompt, context, 時間・天気統合版）
+ * @description Cloudflare Pages Functions用チャットエンドポイント（system-prompt, context, 時間・天気統合 ＆ 画像生成AI連携版）
  */
 
 import { buildSystemPrompt } from '../../src/ai/system-prompt.js';
 import { buildSystemInstructionWithTimeAndWeather } from '../../src/ai/time-utils.js';
-// 必要に応じて context.ts 内のユーティリティ関数などもインポート可能です
+import { generateVisualAid } from '../../src/ai/imagen-service.js'; // ★ 画像生成モジュールのインポート
 
 export async function onRequestPost(context: any) {
   try {
@@ -21,6 +21,7 @@ export async function onRequestPost(context: any) {
       currentTurn?: string | number;
       isFinalTurn?: boolean;
       visualPrompt?: string;
+      requestVisualAid?: boolean; // 🎨 フロントからの画像生成有効フラグ
     };
 
     const { 
@@ -33,7 +34,8 @@ export async function onRequestPost(context: any) {
       turnCount = "6",
       currentTurn = 1,
       isFinalTurn = false,
-      visualPrompt 
+      visualPrompt,
+      requestVisualAid = false
     } = body;
     
     // Cloudflareの環境変数から設定値を取得
@@ -81,7 +83,8 @@ export async function onRequestPost(context: any) {
       sec1Topic,
       turnCount,
       currentTurn,
-      isFinalTurn
+      isFinalTurn,
+      requestVisualAid
     });
 
     // 4. time-utils.ts を使って時間と天気のコンテキストをシステムプロンプトに非同期で結合
@@ -105,7 +108,7 @@ export async function onRequestPost(context: any) {
       parts: [{ text: message }]
     });
 
-    // 5. Vertex AI エンドポイント呼び出し
+    // 5. Vertex AI テキスト生成エンドポイント呼び出し (Gemini 2.5 Flash)
     const modelId = "gemini-2.5-flash";
     const vertexUrl = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models/${modelId}:generateContent`;
 
@@ -134,9 +137,40 @@ export async function onRequestPost(context: any) {
     const vertexData = await vertexResponse.json() as any;
     const aiReply = vertexData?.candidates?.[0]?.content?.parts?.[0]?.text || "申し訳ありません。うまく回答を生成できませんでした。";
 
+    // 6. 画像生成の判定と実行 (visualPrompt が明示されている、またはチェックボックス有効時に自動検知)
     let imageUrl: string | undefined = undefined;
-    if (visualPrompt) {
-      imageUrl = "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80";
+    let promptToUse = visualPrompt;
+
+    if (!promptToUse && requestVisualAid) {
+      const msgLower = message.toLowerCase();
+      // 学習者の発話から図解やイラストが必要な文脈かを簡易判定、または対話内容に基づいたプロンプトを構成
+      if (
+        msgLower.includes("描いて") || 
+        msgLower.includes("イラスト") || 
+        msgLower.includes("図解") || 
+        msgLower.includes("draw") || 
+        msgLower.includes("example") ||
+        msgLower.includes("image")
+      ) {
+        promptToUse = `Educational instructional diagram for VCE Japanese students explaining: ${message}. High quality, clean layout, suitable for high school learning.`;
+      }
+    }
+
+    if (promptToUse) {
+      try {
+        // imagen-service.ts の generateVisualAid を呼び出してBase64データを取得
+        const base64Image = await generateVisualAid({
+          promptText: promptToUse,
+          projectId: projectId,
+          location: region
+        });
+        if (base64Image) {
+          imageUrl = `data:image/png;base64,${base64Image}`;
+        }
+      } catch (err: any) {
+        console.error("Image Generation Error in chat.ts:", err.message);
+        // 画像生成に失敗してもテキスト対話の邪魔をしないよう、ログのみに留める
+      }
     }
 
     return new Response(
