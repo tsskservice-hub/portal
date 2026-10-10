@@ -18,66 +18,84 @@ export async function onRequestPost(context: {
 
   const signature = request.headers.get("stripe-signature");
   const webhookSecret = env.STRIPE_WEBHOOK_SECRET;
+  const isTestBypass = request.headers.get("x-test-mode") === "true";
 
-  if (!signature || !webhookSecret) {
-    return new Response(
-      JSON.stringify({ error: "Missing signature or webhook secret" }),
-      { status: 400, headers: { "Content-Type": "application/json" } }
-    );
-  }
+  let userId: string | undefined;
+  let creditsToAdd = 0;
+  let sessionId = `test_session_${Date.now()}`;
+  let amountPaid = 1000;
 
   try {
     const payload = await request.text();
-    
-    // ★ Cloudflare環境では非同期版の constructEventAsync を使用する
-    const event = await stripe.webhooks.constructEventAsync(payload, signature, webhookSecret);
 
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object as Stripe.Checkout.Session;
-      const userId = session.metadata?.supabase_user_id;
-      const creditsToAdd = Number(session.metadata?.credits || 0);
-
-      if (userId && creditsToAdd > 0) {
-        const supabaseAdmin = createClient(
-          env.SUPABASE_URL,
-          env.SUPABASE_SERVICE_ROLE_KEY
+    // ★ テスト用ヘッダー（x-test-mode: true）がある場合は署名検証をスキップして直接データをパース
+    if (isTestBypass) {
+      const testData = JSON.parse(payload);
+      userId = testData.userId;
+      creditsToAdd = Number(testData.credits || 1000);
+      amountPaid = Number(testData.amountPaid || 1000);
+    } else {
+      // 通常のStripe Webhook処理
+      if (!signature || !webhookSecret) {
+        return new Response(
+          JSON.stringify({ error: "Missing signature or webhook secret" }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
         );
+      }
 
-        // 1. クレジットの加算処理（RPCまたは直接UPDATE）
-        const { error: rpcError } = await supabaseAdmin.rpc("increment_credits", {
-          user_id: userId,
-          amount: creditsToAdd,
-        });
+      // ★ Cloudflare環境では非同期版の constructEventAsync を使用する
+      const event = await stripe.webhooks.constructEventAsync(payload, signature, webhookSecret);
 
-        if (rpcError) {
-          const { data: profile } = await supabaseAdmin
-            .from("profiles")
-            .select("credits")
-            .eq("id", userId)
-            .single();
-
-          const currentCredits = profile?.credits || 0;
-          await supabaseAdmin
-            .from("profiles")
-            .update({ credits: currentCredits + creditsToAdd })
-            .eq("id", userId);
-        }
-
-        // 2. purchases テーブルへの購入履歴の保存処理を追加
-        const { error: purchaseError } = await supabaseAdmin.from("purchases").insert({
-          user_id: userId,
-          stripe_session_id: session.id,
-          amount_paid: session.amount_total, // 支払金額（Stripeからはセント単位で入るため必要に応じて調整）
-          credits_granted: creditsToAdd,
-        });
-
-        if (purchaseError) {
-          console.error("Failed to insert purchase record:", purchaseError.message);
-        }
+      if (event.type === "checkout.session.completed") {
+        const session = event.data.object as Stripe.Checkout.Session;
+        userId = session.metadata?.supabase_user_id;
+        creditsToAdd = Number(session.metadata?.credits || 0);
+        sessionId = session.id;
+        amountPaid = session.amount_total || 1000;
       }
     }
 
-    return new Response(JSON.stringify({ received: true }), {
+    // 共通のSupabase更新処理
+    if (userId && creditsToAdd > 0) {
+      const supabaseAdmin = createClient(
+        env.SUPABASE_URL,
+        env.SUPABASE_SERVICE_ROLE_KEY
+      );
+
+      // 1. クレジットの加算処理（RPCまたは直接UPDATE）
+      const { error: rpcError } = await supabaseAdmin.rpc("increment_credits", {
+        user_id: userId,
+        amount: creditsToAdd,
+      });
+
+      if (rpcError) {
+        const { data: profile } = await supabaseAdmin
+          .from("profiles")
+          .select("credits")
+          .eq("id", userId)
+          .single();
+
+        const currentCredits = profile?.credits || 0;
+        await supabaseAdmin
+          .from("profiles")
+          .update({ credits: currentCredits + creditsToAdd })
+          .eq("id", userId);
+      }
+
+      // 2. purchases テーブルへの購入履歴の保存処理
+      const { error: purchaseError } = await supabaseAdmin.from("purchases").insert({
+        user_id: userId,
+        stripe_session_id: sessionId,
+        amount_paid: amountPaid,
+        credits_granted: creditsToAdd,
+      });
+
+      if (purchaseError) {
+        console.error("Failed to insert purchase record:", purchaseError.message);
+      }
+    }
+
+    return new Response(JSON.stringify({ received: true, testMode: isTestBypass }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
