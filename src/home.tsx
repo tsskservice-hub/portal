@@ -29,11 +29,11 @@ export const STRIPE_PRICES = {
 // Auto demo conversations in English
 const DEMO_CONVERSATIONS = [
   {
-    user: "How do I practice VCE Japanese writing?",
+    user: "How do I practice Japanese writing?",
     yamato: "Hello!🌸 You can use our EOY Writing Exam Tutor with 110 original prompts, Genkoyoshi layout tools, and instant AI feedback."
   },
   {
-    user: "Can I practice oral exams here?",
+    user: "Can I practice oral conversations here?",
     yamato: "Yes! Our EOY Oral Mock Exam module provides realistic voice interaction and real-time AI examiner scoring."
   },
   {
@@ -59,9 +59,9 @@ export default function Home() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [credits, setCredits] = useState<number>(10);
-  
+   
   const [checkoutLoadingPriceId, setCheckoutLoadingPriceId] = useState<string | null>(null);
-  
+   
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [emailInput, setEmailInput] = useState('');
@@ -79,11 +79,11 @@ export default function Home() {
   const [isAiTutorOpen, setIsAiTutorOpen] = useState<boolean>(false);
   const [isAiFullscreen, setIsAiFullscreen] = useState<boolean>(false);
   const aiChatRef = useRef<HTMLDivElement>(null);
-  
+   
   const [tutorMessages, setTutorMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
-      content: "Hello! I'm Japanese Tutor AI Yamato. Have any questions about VCE Japanese exams or need study tips? Ask me anything!",
+      content: "Hello! I'm AI Yamato (やまと先生). Have any questions about the Japanese language, grammar, kanji, or Japanese culture? Ask me anything!",
     },
   ]);
   const [tutorInput, setTutorInput] = useState<string>("");
@@ -152,7 +152,7 @@ export default function Home() {
 
     try {
       const visualPrompt = needsVisual
-        ? `Educational instructional diagram and visual aid for VCE Japanese high school students explaining: ${userMsg}. Clean layout, high quality, professional illustration style.`
+        ? `Educational instructional diagram and visual aid for Japanese language learners explaining: ${userMsg}. Clean layout, high quality, professional illustration style.`
         : undefined;
 
       const response = await fetch("/api/chat", {
@@ -404,7 +404,7 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-20 flex-grow w-full">
-        
+         
         {/* 2. Hero Section with Typing Auto Demo */}
         <section className="text-center space-y-6 max-w-4xl mx-auto">
           <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 shadow-sm">
@@ -830,7 +830,7 @@ export default function Home() {
               </div>
 
               <p className="text-xs text-slate-600 leading-relaxed mb-3 shrink-0">
-                Ask questions about examiner phrasing, grammar, or get study advice!
+                Ask questions about Japanese language, grammar, kanji, or culture!
               </p>
 
               {/* 学習レベル選択UI */}
