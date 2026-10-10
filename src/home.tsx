@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, 
   Coins, 
@@ -42,6 +42,19 @@ const DEMO_CONVERSATIONS = [
   }
 ];
 
+type ChatMessage = {
+  role: "assistant" | "user";
+  content: string;
+  imageUrl?: string;
+};
+
+function sanitizeAiOutput(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*/g, '');
+}
+
 export default function Home() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [user, setUser] = useState<any>(null);
@@ -55,13 +68,133 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Auto demo typing states
+  // Auto demo typing states for hero section
   const [currentStep, setCurrentStep] = useState(0);
   const [displayedUserText, setDisplayedUserText] = useState('');
   const [displayedYamatoText, setDisplayedYamatoText] = useState('');
   const [isTypingYamato, setIsTypingYamato] = useState(false);
 
-  // Typing animation effect
+  // Bottom-right persistent AI tutor states (borrowed from reference code)
+  const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
+  const [isAiTutorOpen, setIsAiTutorOpen] = useState<boolean>(false);
+  const [isAiFullscreen, setIsAiFullscreen] = useState<boolean>(false);
+  const aiChatRef = useRef<HTMLDivElement>(null);
+  
+  const [tutorMessages, setTutorMessages] = useState<ChatMessage[]>([
+    {
+      role: "assistant",
+      content: "Hello! I'm Japanese Tutor AI Yamato. Have any questions about VCE Japanese exams or need study tips? Ask me anything!",
+    },
+  ]);
+  const [tutorInput, setTutorInput] = useState<string>("");
+  const [isTutorLoading, setIsTutorLoading] = useState<boolean>(false);
+  const [requestVisualAid, setRequestVisualAid] = useState<boolean>(false);
+  const [modalImageSrc, setModalImageSrc] = useState<string | null>(null);
+  const [tutorLevel, setTutorLevel] = useState<"steady" | "normal" | "accelerated">("steady");
+
+  // Scroll to top listener
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 300) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Fullscreen toggle for AI chat window
+  const toggleAiFullscreen = async () => {
+    if (!aiChatRef.current) return;
+    try {
+      if (!document.fullscreenElement) {
+        await aiChatRef.current.requestFullscreen();
+        setIsAiFullscreen(true);
+      } else {
+        await document.exitFullscreen();
+        setIsAiFullscreen(false);
+      }
+    } catch (err) {
+      console.error("Fullscreen toggle failed:", err);
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        setIsAiFullscreen(false);
+      }
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  // AI Tutor message handler
+  const handleSendTutorMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tutorInput.trim() || isTutorLoading) return;
+
+    const userMsg = tutorInput.trim();
+    const needsVisual = requestVisualAid;
+
+    setTutorInput("");
+    setRequestVisualAid(false);
+
+    const newMessages: ChatMessage[] = [...tutorMessages, { role: "user", content: userMsg }];
+    setTutorMessages(newMessages);
+    setIsTutorLoading(true);
+
+    try {
+      const visualPrompt = needsVisual
+        ? `Educational instructional diagram and visual aid for VCE Japanese high school students explaining: ${userMsg}. Clean layout, high quality, professional illustration style.`
+        : undefined;
+
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: userMsg,
+          chatHistory: tutorMessages,
+          learningPace: tutorLevel,
+          visualPrompt: visualPrompt,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to get response from AI tutor");
+      }
+
+      const data = (await response.json()) as any;
+      const replyText = data.reply || "I'm here to help you with your Japanese studies!";
+      const imageUrl = data.imageUrl;
+      const sanitizedReply = sanitizeAiOutput(replyText);
+
+      setTutorMessages([
+        ...newMessages,
+        {
+          role: "assistant",
+          content: sanitizedReply,
+          imageUrl: imageUrl,
+        },
+      ]);
+    } catch (err) {
+      console.error(err);
+      setTutorMessages([
+        ...newMessages,
+        { role: "assistant", content: "Sorry, I encountered an error. Please try asking again!" },
+      ]);
+    } finally {
+      setIsTutorLoading(false);
+    }
+  };
+
+  // Typing animation effect for Hero demo
   useEffect(() => {
     const currentConv = DEMO_CONVERSATIONS[currentStep];
     let timeout: NodeJS.Timeout;
@@ -201,7 +334,7 @@ export default function Home() {
   };
 
   return (
-    <div className={`min-h-screen font-sans ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-300 relative`}>
+    <div className={`min-h-screen font-sans ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-300 relative flex flex-col justify-between`}>
       {/* 1. Navbar */}
       <header className={`sticky top-0 z-50 backdrop-blur-md border-b ${isDarkMode ? 'bg-slate-900/80 border-slate-800' : 'bg-white/80 border-slate-200'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -270,9 +403,9 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-20">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-20 flex-grow w-full">
         
-        {/* 2. Hero Section */}
+        {/* 2. Hero Section with Typing Auto Demo */}
         <section className="text-center space-y-6 max-w-4xl mx-auto">
           <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 shadow-sm">
             <Award className="w-3.5 h-3.5 text-blue-600" />
@@ -299,15 +432,15 @@ export default function Home() {
               </div>
               <div className="text-xs text-slate-400 bg-slate-500/10 px-2.5 py-1 rounded-md">
                 Step {currentStep + 1} / {DEMO_CONVERSATIONS.length}
-            </div>
+              </div>
             </div>
 
             <div className="flex items-center justify-between bg-slate-500/5 p-2.5 rounded-xl mb-4 text-xs font-medium">
               <span className="text-slate-500">Auto Playback Preview</span>
               <div className="flex space-x-1 bg-slate-500/10 p-1 rounded-lg">
                 <span className="px-3 py-1 rounded bg-blue-600 text-white shadow-sm">Zero API Cost</span>
+              </div>
             </div>
-          </div>
 
             {/* User Message Bubble */}
             <div className="flex justify-end mb-4">
@@ -334,7 +467,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row items-center justify-between border border-slate-500/30 rounded-xl p-3 bg-slate-500/5 text-sm gap-3">
               <div className="flex items-center space-x-2 text-xs text-slate-500 px-2 text-center sm:text-left">
                 <span>🚀</span>
-              <span>Want to ask Yamato your own questions?</span>
+                <span>Want to ask Yamato your own questions?</span>
               </div>
               <button 
                 onClick={() => { setAuthMode('signup'); setIsAuthModalOpen(true); }}
@@ -435,10 +568,10 @@ export default function Home() {
                 {checkoutLoadingPriceId === STRIPE_PRICES.standard && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 <span>Buy Standard Pack</span>
               </button>
-          </div>
+            </div>
 
-          {/* Pro Intensivist */}
-          <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm`}>
+            {/* Pro Intensivist */}
+            <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm`}>
               <div className="space-y-4">
                 <span className="text-xs font-bold uppercase tracking-wider text-purple-600">Pro Intensivist</span>
                 <div>
@@ -462,183 +595,372 @@ export default function Home() {
                 {checkoutLoadingPriceId === STRIPE_PRICES.pro && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 <span>Buy Pro Pack</span>
               </button>
+            </div>
+          </div>
+
+          <div className={`max-w-2xl mx-auto p-4 rounded-2xl border text-xs ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'} shadow-sm`}>
+            <div className="flex items-center justify-center space-x-2 font-bold mb-3">
+              <Coins className="w-4 h-4 text-amber-500" />
+              <span>Credit Consumption Guide</span>
+            </div>
+            <div className="space-y-2 text-slate-500">
+              <div className="flex justify-between border-b border-slate-500/10 pb-1.5"><span>Text Chat (Q&A / Vocabulary)</span> <span className="font-semibold text-slate-700 dark:text-slate-300">1-2 credits / turn</span></div>
+              <div className="flex justify-between border-b border-slate-500/10 pb-1.5"><span>Essay / Genkoyoshi Correctors</span> <span className="font-semibold text-slate-700 dark:text-slate-300">20-30 credits / session</span></div>
+              <div className="flex justify-between border-b border-slate-500/10 pb-1.5"><span>Oral Exam / Voice Roleplay</span> <span className="font-semibold text-slate-700 dark:text-slate-300">15-25 credits / min</span></div>
+              <div className="flex justify-between pt-0.5"><span>Mini Games & Drills</span> <span className="font-semibold text-emerald-600">Free / 0.5 credits</span></div>
+            </div>
+          </div>
+        </section>
+
+        {/* 4. Additional Portal Pages Navigation Cards */}
+        <section className="space-y-8">
+          <div className="text-center space-y-2">
+            <h2 className="text-3xl font-extrabold tracking-tight">Portal Pages & Modules</h2>
+            <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Direct access to all specialized exam prep modules, tools, and pricing pages.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* 1. eoy-oral-drill.tsx */}
+            <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-blue-500/50 transition-colors`}>
+              <div className="space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+                  <Mic className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-base">EOY Oral Drill</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">Targeted practice drills focusing on conversational fluidity and pronunciation for VCE oral exams.</p>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-medium">Module</span>
+                <a href="/eoy-oral-drill" className="text-blue-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
+                  <span>Open Page</span> <ArrowRight className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+
+            {/* 2. eoy-oral-elaborate.tsx */}
+            <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-blue-500/50 transition-colors`}>
+              <div className="space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
+                  <Mic className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-base">EOY Oral Elaboration</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">Deep-dive elaboration strategies and AI-assisted vocabulary building for Section 2 Detailed Study.</p>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-medium">Module</span>
+                <a href="/eoy-oral-elaborate" className="text-indigo-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
+                  <span>Open Page</span> <ArrowRight className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+
+            {/* 3. eoy-oral-mock.tsx */}
+            <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-blue-500/50 transition-colors`}>
+              <div className="space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
+                  <Mic className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-base">EOY Oral Mock Exam</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">Full-length simulated VCE oral exam environment with real-time AI examiner evaluation and scoring.</p>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-medium">Module</span>
+                <a href="/eoy-oral-mock" className="text-purple-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
+                  <span>Open Page</span> <ArrowRight className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+
+            {/* 4. eoy-writing.tsx */}
+            <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-pink-500/50 transition-colors`}>
+              <div className="space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-pink-500/10 text-pink-600 flex items-center justify-center">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-base">EOY Writing Exam Tutor</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">Comprehensive writing exam practice suite featuring 110 original prompts and structured feedback.</p>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-medium">Module</span>
+                <a href="/eoy-writing" className="text-pink-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
+                  <span>Open Page</span> <ArrowRight className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+
+            {/* 5. game-igo.tsx */}
+            <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-emerald-500/50 transition-colors`}>
+              <div className="space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                  <Gamepad2 className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-base">Go (Igo) Mini Game</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">Traditional Japanese board game mini-app with AI play modes to relax and build strategic thinking.</p>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-medium">Mini Game</span>
+                <a href="/game-igo" className="text-emerald-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
+                  <span>Open Game</span> <ArrowRight className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+
+            {/* 6. genkoyoshi-editor.tsx */}
+            <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-amber-500/50 transition-colors`}>
+              <div className="space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                  <Grid className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-base">Genkoyoshi Editor</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">Digital manuscript paper editor for precise Japanese character layout, counting, and PDF export.</p>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-medium">Free Tool</span>
+                <a href="/genkoyoshi-editor" className="text-amber-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
+                  <span>Open Editor</span> <ArrowRight className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+
+            {/* 7. oral-exam-questions.tsx */}
+            <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-blue-500/50 transition-colors`}>
+              <div className="space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-base">Oral Exam Questions</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">Curated database of official and practice VCE oral examination questions with audio samples.</p>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-medium">Reference</span>
+                <a href="/oral-exam-questions" className="text-blue-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
+                  <span>View Questions</span> <ArrowRight className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+
+            {/* 8. prices.tsx */}
+            <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-purple-500/50 transition-colors`}>
+              <div className="space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
+                  <Coins className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-base">Pricing & Plans Page</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">Dedicated standalone pricing and credit pack selection page with detailed feature breakdowns.</p>
+              </div>
+              <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-medium">Billing</span>
+                <a href="/prices" className="text-purple-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
+                  <span>View Pricing</span> <ArrowRight className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Bottom Play & Learn Badge Bar */}
+        <div className="flex justify-center">
+          <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full border border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-400 text-xs font-bold shadow-sm">
+            <Gamepad2 className="w-4 h-4" />
+            <span>Play & Learn</span>
           </div>
         </div>
-
-        <div className={`max-w-2xl mx-auto p-4 rounded-2xl border text-xs ${isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'} shadow-sm`}>
-          <div className="flex items-center justify-center space-x-2 font-bold mb-3">
-            <Coins className="w-4 h-4 text-amber-500" />
-            <span>Credit Consumption Guide</span>
-          </div>
-          <div className="space-y-2 text-slate-500">
-            <div className="flex justify-between border-b border-slate-500/10 pb-1.5"><span>Text Chat (Q&A / Vocabulary)</span> <span className="font-semibold text-slate-700 dark:text-slate-300">1-2 credits / turn</span></div>
-            <div className="flex justify-between border-b border-slate-500/10 pb-1.5"><span>Essay / Genkoyoshi Correctors</span> <span className="font-semibold text-slate-700 dark:text-slate-300">20-30 credits / session</span></div>
-            <div className="flex justify-between border-b border-slate-500/10 pb-1.5"><span>Oral Exam / Voice Roleplay</span> <span className="font-semibold text-slate-700 dark:text-slate-300">15-25 credits / min</span></div>
-            <div className="flex justify-between pt-0.5"><span>Mini Games & Drills</span> <span className="font-semibold text-emerald-600">Free / 0.5 credits</span></div>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. Additional Portal Pages Navigation Cards */}
-      <section className="space-y-8">
-        <div className="text-center space-y-2">
-          <h2 className="text-3xl font-extrabold tracking-tight">Portal Pages & Modules</h2>
-          <p className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Direct access to all specialized exam prep modules, tools, and pricing pages.</p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* 1. eoy-oral-drill.tsx */}
-          <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-blue-500/50 transition-colors`}>
-            <div className="space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
-                <Mic className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-base">EOY Oral Drill</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">Targeted practice drills focusing on conversational fluidity and pronunciation for VCE oral exams.</p>
-            </div>
-            <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-medium">Module</span>
-              <a href="/eoy-oral-drill" className="text-blue-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
-                <span>Open Page</span> <ArrowRight className="w-3 h-3" />
-              </a>
-            </div>
-          </div>
-
-          {/* 2. eoy-oral-elaborate.tsx */}
-          <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-blue-500/50 transition-colors`}>
-            <div className="space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
-                <Mic className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-base">EOY Oral Elaboration</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">Deep-dive elaboration strategies and AI-assisted vocabulary building for Section 2 Detailed Study.</p>
-            </div>
-            <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-medium">Module</span>
-              <a href="/eoy-oral-elaborate" className="text-indigo-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
-                <span>Open Page</span> <ArrowRight className="w-3 h-3" />
-              </a>
-            </div>
-          </div>
-
-          {/* 3. eoy-oral-mock.tsx */}
-          <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-blue-500/50 transition-colors`}>
-            <div className="space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
-                <Mic className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-base">EOY Oral Mock Exam</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">Full-length simulated VCE oral exam environment with real-time AI examiner evaluation and scoring.</p>
-            </div>
-            <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-medium">Module</span>
-              <a href="/eoy-oral-mock" className="text-purple-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
-                <span>Open Page</span> <ArrowRight className="w-3 h-3" />
-              </a>
-            </div>
-          </div>
-
-          {/* 4. eoy-writing.tsx */}
-          <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-pink-500/50 transition-colors`}>
-            <div className="space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-pink-500/10 text-pink-600 flex items-center justify-center">
-                <FileText className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-base">EOY Writing Exam Tutor</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">Comprehensive writing exam practice suite featuring 110 original prompts and structured feedback.</p>
-            </div>
-            <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-medium">Module</span>
-              <a href="/eoy-writing" className="text-pink-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
-                <span>Open Page</span> <ArrowRight className="w-3 h-3" />
-              </a>
-            </div>
-          </div>
-
-          {/* 5. game-igo.tsx */}
-          <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-emerald-500/50 transition-colors`}>
-            <div className="space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                <Gamepad2 className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-base">Go (Igo) Mini Game</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">Traditional Japanese board game mini-app with AI play modes to relax and build strategic thinking.</p>
-            </div>
-            <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-medium">Mini Game</span>
-              <a href="/game-igo" className="text-emerald-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
-                <span>Open Game</span> <ArrowRight className="w-3 h-3" />
-              </a>
-            </div>
-          </div>
-
-          {/* 6. genkoyoshi-editor.tsx */}
-          <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-amber-500/50 transition-colors`}>
-            <div className="space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
-                <Grid className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-base">Genkoyoshi Editor</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">Digital manuscript paper editor for precise Japanese character layout, counting, and PDF export.</p>
-            </div>
-            <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-medium">Free Tool</span>
-              <a href="/genkoyoshi-editor" className="text-amber-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
-                <span>Open Editor</span> <ArrowRight className="w-3 h-3" />
-              </a>
-            </div>
-          </div>
-
-          {/* 7. oral-exam-questions.tsx */}
-          <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-blue-500/50 transition-colors`}>
-            <div className="space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
-                <FileText className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-base">Oral Exam Questions</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">Curated database of official and practice VCE oral examination questions with audio samples.</p>
-            </div>
-            <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-medium">Reference</span>
-              <a href="/oral-exam-questions" className="text-blue-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
-                <span>View Questions</span> <ArrowRight className="w-3 h-3" />
-              </a>
-            </div>
-          </div>
-
-          {/* 8. prices.tsx */}
-          <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm hover:border-purple-500/50 transition-colors`}>
-            <div className="space-y-4">
-              <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
-                <Coins className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-base">Pricing & Plans Page</h3>
-              <p className="text-xs text-slate-500 leading-relaxed">Dedicated standalone pricing and credit pack selection page with detailed feature breakdowns.</p>
-            </div>
-            <div className="mt-6 pt-4 border-t border-slate-500/10 flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-medium">Billing</span>
-              <a href="/prices" className="text-purple-600 font-bold flex items-center space-x-1 hover:underline cursor-pointer">
-                <span>View Pricing</span> <ArrowRight className="w-3 h-3" />
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Bottom Play & Learn Badge Bar */}
-      <div className="flex justify-center">
-        <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full border border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-400 text-xs font-bold shadow-sm">
-          <Gamepad2 className="w-4 h-4" />
-          <span>Play & Learn</span>
-        </div>
-      </div>
 
       </main>
 
-      {/* Footer */}
-      <footer className={`border-t py-8 text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-        <p>© 2026 JP Tutor AI Yamato. All rights reserved.</p>
-      </footer>
+      {/* 🤖 右下常駐エリア（AIチューター窓 & 上に戻るボタンを一体化して配置） */}
+      <aside aria-label="AI Yamato" className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+        {showScrollTop && (
+          <button
+            type="button"
+            onClick={scrollToTop}
+            className="bg-amber-600 hover:bg-amber-700 text-white p-3 rounded-full shadow-lg transition-all cursor-pointer text-sm flex items-center justify-center"
+            title="Scroll to top"
+          >
+            ⬆️
+          </button>
+        )}
+
+        {!isAiTutorOpen ? (
+          <button
+            type="button"
+            onClick={() => setIsAiTutorOpen(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-3 rounded-full shadow-lg flex items-center gap-2 transition-all cursor-pointer text-sm"
+          >
+            <span>🤖</span>
+            <span>AI Yamato</span>
+          </button>
+        ) : (
+          <div
+            ref={aiChatRef}
+            className={`bg-white border-2 border-emerald-300 rounded-2xl p-5 shadow-2xl flex flex-col transition-all ${
+              isAiFullscreen
+                ? "w-screen h-screen rounded-none border-none p-6 sm:p-10 overflow-auto"
+                : "w-80 sm:w-96 h-[500px] min-w-[280px] min-h-[350px] max-w-[90vw] max-h-[85vh] resize overflow-auto [transform:rotate(180deg)]"
+            }`}
+          >
+            <div className={`w-full h-full flex flex-col ${!isAiFullscreen ? "[transform:rotate(180deg)]" : ""}`}>
+              <div className="flex items-center justify-between border-b pb-2 mb-3 shrink-0">
+                <h3 className="text-sm font-bold text-emerald-900 flex items-center gap-2 m-0">
+                  <span>🤖</span> 日本語Tutor AI Yamato
+                </h3>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={toggleAiFullscreen}
+                    className="text-slate-500 hover:text-slate-700 text-xs font-bold px-2 py-1 rounded-md transition cursor-pointer border border-slate-200"
+                    title={isAiFullscreen ? "元の大きさに戻す" : "デバイスの画面に合わせて最大化"}
+                  >
+                    {isAiFullscreen ? "🗗 縮小" : "🗖 最大化"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (document.fullscreenElement) {
+                        document.exitFullscreen().catch(() => {});
+                      }
+                      setIsAiTutorOpen(false);
+                      setIsAiFullscreen(false);
+                    }}
+                    className="text-slate-400 hover:text-slate-600 text-xs font-bold px-2 py-1 rounded-md transition cursor-pointer"
+                  >
+                    ✕ Close
+                  </button>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed mb-3 shrink-0">
+                Ask questions about examiner phrasing, grammar, or get study advice!
+              </p>
+
+              {/* 学習レベル選択UI */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 mb-3 flex items-center justify-between shrink-0">
+                <span className="text-xs font-bold text-emerald-900">Learning Pace</span>
+                <div className="inline-flex rounded-lg bg-white p-0.5 shadow-xs border border-emerald-200">
+                  {(["steady", "normal", "accelerated"] as const).map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setTutorLevel(level)}
+                      className={`px-2.5 py-1 rounded-md text-[10px] font-bold capitalize transition ${
+                        tutorLevel === level
+                          ? "bg-emerald-600 text-white shadow-xs"
+                          : "text-slate-600 hover:text-emerald-700"
+                      }`}
+                    >
+                      {level}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* チャット履歴エリア */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 overflow-y-auto space-y-2.5 flex-grow mb-3">
+                {tutorMessages.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
+                  >
+                    <div
+                      className={`max-w-[95%] p-2.5 rounded-xl text-xs leading-relaxed whitespace-pre-wrap ${
+                        msg.role === "user"
+                          ? "bg-emerald-600 text-white rounded-br-xs"
+                          : "bg-white border border-slate-200 text-slate-800 rounded-bl-xs shadow-xs"
+                      }`}
+                    >
+                      {msg.role === "user" ? (
+                        msg.content
+                      ) : (
+                        <div className="space-y-2">
+                          <div 
+                            className="ai-markdown-content overflow-x-auto [&_table]:w-full [&_table]:border-collapse [&_table]:my-2 [&_th]:border [&_th]:border-slate-300 [&_th]:bg-slate-100 [&_th]:p-1.5 [&_th]:text-left [&_td]:border [&_td]:border-slate-200 [&_td]:p-1.5"
+                            dangerouslySetInnerHTML={{ __html: msg.content }}
+                          />
+                          {msg.imageUrl && (
+                            <div className="mt-2 rounded-lg overflow-hidden border border-emerald-200 bg-emerald-50/50 p-1">
+                              <img
+                                src={msg.imageUrl}
+                                alt="AI Yamato Visual Explanation"
+                                onClick={() => setModalImageSrc(msg.imageUrl || null)}
+                                className="w-full h-auto rounded-md object-contain max-h-48 cursor-pointer hover:opacity-95 transition"
+                                title="クリックして画像を拡大"
+                              />
+                              <p className="text-[10px] text-emerald-800 text-center mt-1 font-medium cursor-pointer" onClick={() => setModalImageSrc(msg.imageUrl || null)}>
+                                ✨ ヤマト特製図解・イラスト（クリックして拡大）
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {isTutorLoading && (
+                  <div className="text-xs text-slate-500 italic">🤖 AI Yamato is thinking (and creating visual illustration)...</div>
+                )}
+              </div>
+
+              {/* 入力フォーム & 図解生成チェックボックス */}
+              <form onSubmit={handleSendTutorMessage} className="flex flex-col gap-2 shrink-0">
+                <div className="flex items-center gap-2 px-1">
+                  <label className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-800 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={requestVisualAid}
+                      onChange={(e) => setRequestVisualAid(e.target.checked)}
+                      disabled={isTutorLoading}
+                      className="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5 cursor-pointer"
+                    />
+                    <span>🎨 explain with diagrams and illustrations</span>
+                  </label>
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={tutorInput}
+                    onChange={(e) => setTutorInput(e.target.value)}
+                    placeholder="Ask AI tutor anything..."
+                    disabled={isTutorLoading}
+                    className="flex-grow p-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-50/50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isTutorLoading || !tutorInput.trim()}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-50 shrink-0"
+                  >
+                    Send
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </aside>
+
+      {/* 画像拡大表示用モーダル（Lightbox） */}
+      {modalImageSrc && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setModalImageSrc(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] bg-white rounded-2xl p-2 shadow-2xl flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setModalImageSrc(null)}
+              className="absolute top-3 right-3 bg-slate-800/70 hover:bg-slate-900 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition cursor-pointer z-10"
+            >
+              ✕
+            </button>
+            <img
+              src={modalImageSrc}
+              alt="Enlarged AI Yamato Visual"
+              className="max-w-full max-h-[80vh] rounded-lg object-contain"
+            />
+            <p className="text-xs text-slate-600 mt-2 font-medium">✨ ヤマト特製図解・イラスト（拡大表示）</p>
+          </div>
+        </div>
+      )}
 
       {/* Passkey Authentication / Registration Modal */}
       {isAuthModalOpen && (
@@ -718,6 +1040,11 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Footer */}
+      <footer className={`border-t py-8 text-center text-xs text-slate-500 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+        <p>© 2026 JP Tutor AI Yamato. All rights reserved.</p>
+      </footer>
     </div>
   );
 }
