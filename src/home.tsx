@@ -9,20 +9,20 @@ import {
   Mic, 
   Gamepad2, 
   Check, 
-  ArrowRight,
-  ShieldCheck,
-  Award,
-  X,
-  KeyRound,
-  LogOut,
-  Loader2
+  ArrowRight, 
+  ShieldCheck, 
+  Award, 
+  X, 
+  KeyRound, 
+  LogOut, 
+  Loader2 
 } from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
 import { signUpAndRegisterPasskey, signInWithPasskey } from './lib/passkey';
 
 export const STRIPE_PRICES = {
   starter: 'price_1UOmko2ZJezqyZ9eR0l8cvUk',
-  standard: 'price_1xxxx_standard', 
+  standard: 'price_1xxxx_standard',
   pro: 'price_1xxxx_pro',
 };
 
@@ -48,20 +48,23 @@ type ChatMessage = {
   imageUrl?: string;
 };
 
-function sanitizeAiOutput(text: string): string {
+// AI出力テキストの整形関数（HTMLエスケープと改行コードの保持）
+function formatAiOutput(text: string): string {
   if (!text) return "";
   return text
-    .replace(/^#{1,6}\s+/gm, '')
-    .replace(/\*\*/g, '');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br />");
 }
 
 export default function Home() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [credits, setCredits] = useState<number>(10);
-   
   const [checkoutLoadingPriceId, setCheckoutLoadingPriceId] = useState<string | null>(null);
-   
+
+  // Auth modal states
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [emailInput, setEmailInput] = useState('');
@@ -74,12 +77,12 @@ export default function Home() {
   const [displayedYamatoText, setDisplayedYamatoText] = useState('');
   const [isTypingYamato, setIsTypingYamato] = useState(false);
 
-  // Bottom-right persistent AI tutor states (borrowed from reference code)
+  // Bottom-right persistent AI tutor states
   const [showScrollTop, setShowScrollTop] = useState<boolean>(false);
   const [isAiTutorOpen, setIsAiTutorOpen] = useState<boolean>(false);
   const [isAiFullscreen, setIsAiFullscreen] = useState<boolean>(false);
   const aiChatRef = useRef<HTMLDivElement>(null);
-   
+
   const [tutorMessages, setTutorMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
@@ -162,7 +165,9 @@ export default function Home() {
           message: userMsg,
           chatHistory: tutorMessages,
           learningPace: tutorLevel,
+          requestVisualAid: needsVisual, // ★ チェックボックスのON/OFFフラグを明示的送信
           visualPrompt: visualPrompt,
+          appType: "general",
         }),
       });
 
@@ -173,13 +178,13 @@ export default function Home() {
       const data = (await response.json()) as any;
       const replyText = data.reply || "I'm here to help you with your Japanese studies!";
       const imageUrl = data.imageUrl;
-      const sanitizedReply = sanitizeAiOutput(replyText);
+      const formattedReply = formatAiOutput(replyText);
 
       setTutorMessages([
         ...newMessages,
         {
           role: "assistant",
-          content: sanitizedReply,
+          content: formattedReply,
           imageUrl: imageUrl,
         },
       ]);
@@ -223,6 +228,7 @@ export default function Home() {
     return () => clearTimeout(timeout);
   }, [displayedUserText, displayedYamatoText, isTypingYamato, currentStep]);
 
+  // Auth and session handling
   useEffect(() => {
     const queryParams = new URLSearchParams(window.location.search);
     if (queryParams.get('success') === 'true') {
@@ -493,7 +499,7 @@ export default function Home() {
               <div className="space-y-4">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Free Plan</span>
                 <div>
-                  <span className="text-4xl font-black">$0</span>
+                  <span className="text-4xl font-black">\$0</span>
                   <span className="text-xs text-slate-500 ml-1">/ forever</span>
                 </div>
                 <div className="inline-block px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-600 text-xs font-bold">
@@ -518,7 +524,7 @@ export default function Home() {
               <div className="space-y-4">
                 <span className="text-xs font-bold uppercase tracking-wider text-blue-600">Starter Pack</span>
                 <div>
-                  <span className="text-4xl font-black">$10</span>
+                  <span className="text-4xl font-black">\$10</span>
                   <span className="text-xs text-slate-500 ml-1">AUD</span>
                 </div>
                 <div className="inline-block px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-600 text-xs font-bold">
@@ -548,7 +554,7 @@ export default function Home() {
               <div className="space-y-4">
                 <span className="text-xs font-bold uppercase tracking-wider text-blue-600">Standard Pack</span>
                 <div>
-                  <span className="text-4xl font-black">$25</span>
+                  <span className="text-4xl font-black">\$25</span>
                   <span className="text-xs text-slate-500 ml-1">AUD</span>
                 </div>
                 <div className="inline-block px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-600 text-xs font-bold">
@@ -575,7 +581,7 @@ export default function Home() {
               <div className="space-y-4">
                 <span className="text-xs font-bold uppercase tracking-wider text-purple-600">Pro Intensivist</span>
                 <div>
-                  <span className="text-4xl font-black">$50</span>
+                  <span className="text-4xl font-black">\$50</span>
                   <span className="text-xs text-slate-500 ml-1">AUD</span>
                 </div>
                 <div className="inline-block px-2.5 py-1 rounded-md bg-purple-500/10 text-purple-600 text-xs font-bold">

@@ -1,11 +1,11 @@
 /**
  * @file chat.ts
- * @description Cloudflare Pages Functions用チャットエンドポイント（system-prompt, context, 時間・天気統合 ＆ 画像生成AI連携版）
+ * @description Cloudflare Pages Functions用チャットエンドポイント（context.ts, 時間・天気統合 ＆ 画像生成AI連携完全版）
  */
 
-import { buildSystemPrompt } from '../../src/ai/system-prompt.js';
+import { buildAiYamatoContext } from '../../src/ai/context.js';
 import { buildSystemInstructionWithTimeAndWeather } from '../../src/ai/time-utils.js';
-import { generateVisualAid } from '../../src/ai/imagen-service.js'; // ★ 画像生成モジュールのインポート
+import { generateVisualAid } from '../../src/ai/imagen-service.js';
 
 export async function onRequestPost(context: any) {
   try {
@@ -15,13 +15,8 @@ export async function onRequestPost(context: any) {
       chatHistory?: Array<{ role: string; content: string }>;
       learningPace?: string;
       userNickname?: string;
-      practiceMode?: string;
-      sec1Topic?: string;
-      turnCount?: string | number;
-      currentTurn?: string | number;
-      isFinalTurn?: boolean;
       visualPrompt?: string;
-      requestVisualAid?: boolean; // 🎨 フロントからの画像生成有効フラグ
+      requestVisualAid?: boolean;
     };
 
     const { 
@@ -29,15 +24,10 @@ export async function onRequestPost(context: any) {
       chatHistory = [], 
       learningPace = "normal", 
       userNickname = "生徒さん",
-      practiceMode = "section 1",
-      sec1Topic = "all",
-      turnCount = "6",
-      currentTurn = 1,
-      isFinalTurn = false,
       visualPrompt,
       requestVisualAid = false
     } = body;
-    
+
     // Cloudflareの環境変数から設定値を取得
     const projectId = env?.VERTEX_AI_PROJECT_ID;
     const region = env?.VERTEX_AI_REGION || "us-central1";
@@ -54,7 +44,7 @@ export async function onRequestPost(context: any) {
     }
 
     // 1. サービスアカウントJSONのパース
-    let serviceAccount;
+    let serviceAccount: any;
     try {
       serviceAccount = JSON.parse(serviceAccountJsonStr);
     } catch (e: any) {
@@ -75,23 +65,29 @@ export async function onRequestPost(context: any) {
       );
     }
 
-    // 3. system-prompt.ts の buildSystemPrompt を使ってメタデータ入りのベースプロンプトを構築
-    const baseSystemPrompt = buildSystemPrompt({
+    // 3. 画像生成判定（チェックボックス状態またはvisualPromptの指定のみに完全連動）
+    const shouldGenerateImage = Boolean(requestVisualAid || visualPrompt);
+
+    // 4. context.ts の buildAiYamatoContext を呼び出してシステムプロンプトを構築
+    let baseSystemPrompt = buildAiYamatoContext({
       learningPace,
       userNickname,
-      practiceMode,
-      sec1Topic,
-      turnCount,
-      currentTurn,
-      isFinalTurn,
-      requestVisualAid
+      dialogueCount: chatHistory.length + 1,
+      appType: "general"
     });
 
-    // 4. time-utils.ts を使って時間と天気のコンテキストをシステムプロンプトに非同期で結合
+    // 英語応答の遵守指示と画像生成状況をシステムプロンプトに補強
+    baseSystemPrompt += `\n\n<CRITICAL_LANGUAGE_AND_VISUAL_RULES>
+- ABSOLUTE RULE: You MUST write your ENTIRE response strictly in ENGLISH. Japanese is ONLY permitted for target Japanese vocabulary, example sentences, kanji, furigana, or romaji.
+- Do NOT reply in Japanese even if the user asks in Japanese. Explain Japanese concepts clearly in English.
+- VISUAL AID STATUS: ${shouldGenerateImage ? "ENABLED. An educational visual diagram is being generated and attached to your response. Introduce it naturally in English (e.g., 'Here is a visual aid to help illustrate this concept!')." : "DISABLED"}
+</CRITICAL_LANGUAGE_AND_VISUAL_RULES>`;
+
+    // 5. 時間・天気のコンテキスト結合
     const enhancedSystemPromptText = await buildSystemInstructionWithTimeAndWeather(
       baseSystemPrompt,
-      undefined, // デバッグ用の日時上書き
-      'melbourne' // 基準都市
+      undefined,
+      'melbourne'
     );
 
     const systemInstruction = {
@@ -108,7 +104,7 @@ export async function onRequestPost(context: any) {
       parts: [{ text: message }]
     });
 
-    // 5. Vertex AI テキスト生成エンドポイント呼び出し (Gemini 2.5 Flash)
+    // 6. Vertex AI テキスト生成エンドポイント呼び出し (Gemini 2.5 Flash)
     const modelId = "gemini-2.5-flash";
     const vertexUrl = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models/${modelId}:generateContent`;
 
@@ -135,30 +131,19 @@ export async function onRequestPost(context: any) {
     }
 
     const vertexData = await vertexResponse.json() as any;
-    const aiReply = vertexData?.candidates?.[0]?.content?.parts?.[0]?.text || "申し訳ありません。うまく回答を生成できませんでした。";
+    // 修正箇所: カテナリーの重複（?.?.）を正しいオプショナルチェーニングに修正
+    const aiReply = vertexData?.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate a response.";
 
-    // 6. 画像生成の判定と実行 (visualPrompt が明示されている、またはチェックボックス有効時に自動検知)
+    // 7. 画像生成の実行 (チェックボックスがONの場合にのみ実行)
     let imageUrl: string | undefined = undefined;
     let promptToUse = visualPrompt;
 
-    if (!promptToUse && requestVisualAid) {
-      const msgLower = message.toLowerCase();
-      // 学習者の発話から図解やイラストが必要な文脈かを簡易判定、または対話内容に基づいたプロンプトを構成
-      if (
-        msgLower.includes("描いて") || 
-        msgLower.includes("イラスト") || 
-        msgLower.includes("図解") || 
-        msgLower.includes("draw") || 
-        msgLower.includes("example") ||
-        msgLower.includes("image")
-      ) {
-        promptToUse = `Educational instructional diagram for VCE Japanese students explaining: ${message}. High quality, clean layout, suitable for high school learning.`;
-      }
+    if (!promptToUse && shouldGenerateImage) {
+      promptToUse = `Educational instructional diagram and visual aid for Japanese language learners explaining: ${message}. Clean layout, high quality, professional illustration style.`;
     }
 
     if (promptToUse) {
       try {
-        // imagen-service.ts の generateVisualAid を呼び出してBase64データを取得
         const base64Image = await generateVisualAid({
           promptText: promptToUse,
           projectId: projectId,
@@ -169,7 +154,6 @@ export async function onRequestPost(context: any) {
         }
       } catch (err: any) {
         console.error("Image Generation Error in chat.ts:", err.message);
-        // 画像生成に失敗してもテキスト対話の邪魔をしないよう、ログのみに留める
       }
     }
 
@@ -196,7 +180,7 @@ export async function onRequestPost(context: any) {
   }
 }
 
-// ─── 正しい jwt-bearer 方式のアクセストークン取得ヘルパー ───
+// ─── JWT-Bearer 方式のアクセストークン取得ヘルパー ───
 async function getGoogleAccessToken(serviceAccount: any): Promise<string | null> {
   try {
     const header = { alg: "RS256", typ: "JWT" };
