@@ -16,15 +16,29 @@ import {
   Award,
   X,
   KeyRound,
-  LogOut
+  LogOut,
+  Loader2
 } from 'lucide-react';
 import { supabase } from './lib/supabaseClient'; // 既存のSupabaseクライアント
 import { signUpAndRegisterPasskey, signInWithPasskey } from './lib/passkey'; // 新しく作成したパスキー認証関数
+
+// ==========================================
+// Stripe プラン・価格ID マッピング定義
+// （他のページやファイルからもインポートして共有できます）
+// ==========================================
+export const STRIPE_PRICES = {
+  starter: 'price_1UDmkoZZJezqyZ9eR0I8cvUk', // TODO: 実際のStripe価格ID（price_...）に置き換えてください
+  standard: 'price_1xxxx_standard', 
+  pro: 'price_1xxxx_pro',
+};
 
 export default function Home() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [credits, setCredits] = useState<number>(10);
+  
+  // 決済処理中のローディング状態管理（どの価格IDを処理中か）
+  const [checkoutLoadingPriceId, setCheckoutLoadingPriceId] = useState<string | null>(null);
   
   // パスキー認証・登録モーダルの状態管理
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -108,6 +122,49 @@ export default function Home() {
       return;
     }
     window.location.href = appUrl;
+  };
+
+  // Stripeチェックアウトセッション作成＆リダイレクト処理
+  const handleCheckout = async (priceId: string) => {
+    // 未ログインの場合は、まずサインアップ/ログインモーダルへ誘導
+    if (!user) {
+      setAuthMode('signup');
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    try {
+      setCheckoutLoadingPriceId(priceId);
+
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priceId: priceId,
+          userId: user.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+
+      if (data.url) {
+        // Stripeのホステッド・チェックアウト画面へリダイレクト
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned from server.');
+      }
+    } catch (err: any) {
+      console.error('Checkout error:', err);
+      alert(`Checkout error: ${err.message || 'Please try again.'}`);
+    } finally {
+      setCheckoutLoadingPriceId(null);
+    }
   };
 
   return (
@@ -321,13 +378,13 @@ export default function Home() {
               </div>
               <button 
                 onClick={() => { setAuthMode('signup'); setIsAuthModalOpen(true); }}
-                className="mt-6 w-full py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="mt-6 w-full py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               >
                 Get Started Free
               </button>
             </div>
 
-            {/* Starter Pack */}
+            {/* Starter Pack ($10 AUD - Product ID: prod_VPbyVSlnaGjpa8) */}
             <div className={`p-6 rounded-3xl border flex flex-col justify-between ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} shadow-sm`}>
               <div className="space-y-4">
                 <span className="text-xs font-bold uppercase tracking-wider text-blue-600">Starter Pack</span>
@@ -344,8 +401,13 @@ export default function Home() {
                   <li className="flex items-center space-x-2"><Check className="w-3.5 h-3.5 text-blue-600" /><span>Pay-as-you-go flexibility</span></li>
                 </ul>
               </div>
-              <button className="mt-6 w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md shadow-blue-600/20 transition-colors">
-                Buy Starter Pack
+              <button 
+                onClick={() => handleCheckout(STRIPE_PRICES.starter)} 
+                disabled={checkoutLoadingPriceId === STRIPE_PRICES.starter}
+                className="mt-6 w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md shadow-blue-600/20 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+              >
+                {checkoutLoadingPriceId === STRIPE_PRICES.starter && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Buy Starter Pack</span>
               </button>
             </div>
 
@@ -369,8 +431,13 @@ export default function Home() {
                   <li className="flex items-center space-x-2"><Check className="w-3.5 h-3.5 text-blue-600" /><span>Regular Study & Test Practice</span></li>
                 </ul>
               </div>
-              <button className="mt-6 w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md shadow-blue-600/20 transition-colors">
-                Buy Standard Pack
+              <button 
+                onClick={() => handleCheckout(STRIPE_PRICES.standard)} 
+                disabled={checkoutLoadingPriceId === STRIPE_PRICES.standard}
+                className="mt-6 w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-md shadow-blue-600/20 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+              >
+                {checkoutLoadingPriceId === STRIPE_PRICES.standard && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Buy Standard Pack</span>
               </button>
             </div>
 
@@ -391,8 +458,13 @@ export default function Home() {
                   <li className="flex items-center space-x-2"><Check className="w-3.5 h-3.5 text-purple-600" /><span>VCE Exam Prep & Essay Essays</span></li>
                 </ul>
               </div>
-              <button className="mt-6 w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs shadow-md shadow-purple-600/20 transition-colors">
-                Buy Pro Pack
+              <button 
+                onClick={() => handleCheckout(STRIPE_PRICES.pro)} 
+                disabled={checkoutLoadingPriceId === STRIPE_PRICES.pro}
+                className="mt-6 w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs shadow-md shadow-purple-600/20 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+              >
+                {checkoutLoadingPriceId === STRIPE_PRICES.pro && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Buy Pro Pack</span>
               </button>
             </div>
           </div>
@@ -517,7 +589,7 @@ export default function Home() {
           <div className={`w-full max-w-md rounded-3xl p-6 sm:p-8 border shadow-2xl relative ${isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'}`}>
             <button 
               onClick={() => setIsAuthModalOpen(false)}
-              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-500/10 transition-colors text-slate-400"
+              className="absolute top-5 right-5 p-2 rounded-full hover:bg-slate-500/10 transition-colors text-slate-400 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
