@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, Link } from "react-router";
-import type { MetaFunction } from "react-router";
+import { useNavigate, Link } from "react-router-dom";
 import TextTypeModal from "../components/TextTypeModal";
 import { Header } from "../components/header"; // ⬅️ ① ヘッダーをインポート (パスは実際の階層に合わせて調整してください)
 
@@ -26,13 +25,6 @@ function QuickFeedbackCard() {
 
 const questions = questionsData as any[];
 const modalData: { [key: string]: any } = textTypesData;
-
-export const meta: MetaFunction = () => {
-  return [
-    { title: "Learning Dashboard | VCE EOY Exam Writing Tutor" },
-    { name: "description", content: "VCE Japanese writing practice, AI feedback, and task management portal" },
-  ];
-};
 
 function sanitizeAiOutput(text: string): string {
   if (!text) return "";
@@ -198,6 +190,10 @@ export default function Dashboard() {
   const aiChatRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    document.title = "Learning Dashboard | VCE EOY Exam Writing Tutor";
+  }, []);
+
   type ChatMessage = {
     role: 'assistant' | 'user';
     content: string;
@@ -346,13 +342,11 @@ export default function Dashboard() {
   }
 
   return (
-    // ⬅️ ② 全体を囲む親要素を `min-h-screen bg-white text-slate-800 font-sans` に設定
     <div className="min-h-screen bg-white text-slate-800 font-sans relative">
       
-      {/* ⬅️ ③ ヘッダーコンポーネントを一番上に配置 */}
+      {/* 共通ヘッダーコンポーネント */}
       <Header />
 
-      {/* ⬅️ ④ メインコンテンツ部分（必要に応じて元のレイアウト用クラスを調整） */}
       <main className="max-w-4xl mx-auto px-4 py-8 relative">
         <div className="mb-6 p-6 bg-slate-50 border border-slate-200 rounded-2xl shadow-sm">
           <h2 className="text-xl font-bold text-slate-800 m-0 mb-4 flex items-center gap-2">
@@ -836,7 +830,7 @@ export default function Dashboard() {
                     <button
                       type="submit"
                       disabled={isTutorLoading || (!tutorInput.trim() && !selectedImage)}
-                      className="px-4 py.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-50 shrink-0"
+                      className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-50 shrink-0"
                     >
                       Send
                     </button>
