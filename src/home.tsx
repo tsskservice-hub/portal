@@ -292,43 +292,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 3. Featured App Banner (Video Removed) */}
-        <section className={`rounded-3xl p-6 sm:p-10 border shadow-2xl relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 text-white border-slate-800`}>
-          <div className="max-w-3xl mx-auto space-y-6 text-center">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-semibold bg-pink-500/10 text-pink-400 border border-pink-500/20">
-              <span>⭐ Featured VCE App</span>
-            </div>
-            
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-              VCE Japanese EOY Exam <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-amber-400">
-                Writing AI Tutor ✍️ 📄
-              </span>
-            </h2>
-
-            <p className="text-slate-300 text-sm leading-relaxed max-w-xl mx-auto">
-              110 original questions, Kanji & Grammar checker and VCE-aligned instant feedback.
-            </p>
-
-            <ul className="space-y-2 text-sm text-slate-300 inline-block text-left">
-              <li className="flex items-center space-x-2"><Check className="w-4 h-4 text-pink-400" /><span>Tailored Learning Pace & In-Depth Feedback</span></li>
-              <li className="flex items-center space-x-2"><Check className="w-4 h-4 text-pink-400" /><span>Genkouyoshi & Text-Type Guidance</span></li>
-              <li className="flex items-center space-x-2"><Check className="w-4 h-4 text-pink-400" /><span>Passkey Biometric Instant Login</span></li>
-            </ul>
-
-            <div className="pt-4 flex justify-center">
-              <button 
-                onClick={() => handleLaunchApp('Writing Tutor', '/writing-tutor')}
-                className="px-8 py-3.5 rounded-xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white shadow-lg shadow-pink-600/30 transition-all flex items-center justify-center space-x-2 cursor-pointer"
-              >
-                <span>Launch App / Get Access</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* 4. Pricing & Credit Packs */}
+        {/* 3. Pricing & Credit Packs */}
         <section className="space-y-12 text-center">
           <div className="space-y-3">
             <h2 className="text-3xl font-extrabold tracking-tight">Choose Your Plan & Credit Packs</h2>
@@ -460,7 +424,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 5. Additional Portal Pages Navigation Cards (from portal/src/pages/) */}
+        {/* 4. Additional Portal Pages Navigation Cards (from portal/src/pages/) */}
         <section className="space-y-8">
           <div className="text-center space-y-2">
             <h2 className="text-3xl font-extrabold tracking-tight">Portal Pages & Modules</h2>
