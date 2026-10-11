@@ -1,4 +1,4 @@
-import{r,j as e}from"./index-8NflKPZb.js";import{H as c}from"./header-CPDPlMra.js";import{S as m,a as h,C as t,A as s,M as p}from"./sparkles-C61ajk4e.js";import{d as i}from"./components-iyMch4aB.js";import{c as x}from"./coins-BrjBTC8G.js";/**
+import{r,j as e}from"./index-8NflKPZb.js";import{H as c}from"./header-RA7X_Gtc.js";import{S as m,a as h,C as t,A as s,M as p}from"./sparkles-BbF98egf.js";import{L as i}from"./components-wZNuVW1A.js";import{c as x}from"./coins-BoK94HeF.js";/**
  * @license lucide-react v1.55.0 - ISC
  *
  * This source code is licensed under the ISC license.

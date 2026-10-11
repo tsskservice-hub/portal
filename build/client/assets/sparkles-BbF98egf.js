@@ -1,4 +1,4 @@
-import{c as a}from"./coins-BrjBTC8G.js";/**
+import{c as a}from"./coins-BoK94HeF.js";/**
  * @license lucide-react v1.55.0 - ISC
  *
  * This source code is licensed under the ISC license.
