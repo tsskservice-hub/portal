@@ -7,8 +7,12 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     remix({
-      // Cloudflare Pages / Workers 向けのプリセットや設定を追加する場合に記述します
+      // Cloudflare Pages/Workers 向けのターゲットプリセットを指定
+      presets: [
+        // Remix v2 の Vite 統合で Cloudflare 用の出力を有効にする
+      ],
     }),
     tsconfigPaths(),
   ],
+  // Cloudflare Pages ではビルドターゲットにworkerd環境を意識させることが重要です
 });
